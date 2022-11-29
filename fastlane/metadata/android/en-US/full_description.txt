@@ -1,0 +1,4 @@
+Online Go programming language book written Persian for persian gophers.
+
+    * Minimum permissions
+    * support Android 4.0+
