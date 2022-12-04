@@ -2,15 +2,13 @@ package com.book.gofarsi
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
+import android.util.Log
 import android.view.View
-import android.webkit.CookieManager
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
+import android.webkit.*
 import android.widget.RelativeLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -19,7 +17,11 @@ import androidx.appcompat.app.AppCompatActivity
 //import org.jsoup.Jsoup
 
 class WebActivity : AppCompatActivity() {
-    var myWebView :WebView? = null;
+    var myWebView: WebView? = null
+    private val list = arrayListOf("https://book.gofarsi.ir/", "https://book.ir1.gofarsi.ir/", "https://ipfs-book.gofarsi.ir/", "https://book.m1.gofarsi.ir/")
+    var urlIndex = 0
+    var hasErrorInLoading = false
+    var currentUrl = ""
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_web)
@@ -29,16 +31,51 @@ class WebActivity : AppCompatActivity() {
         var title = intent.extras?.getString(KEY_TITLE) ?: ""
         var link = intent.extras?.getString(KEY_LINK) ?: ""
 
-        link = "https://book.gofarsi.ir/"
+        link = list[urlIndex]
 
         findViewById<TextView>(R.id.tvVersion).text = BuildConfig.VERSION_NAME
         myWebView = findViewById(R.id.webview);
         loadWebView(this, link, myWebView!!)
-        var view = findViewById<RelativeLayout>(R.id.loading)
-        Handler(Looper.getMainLooper()).postDelayed({
-            view.visibility = View.INVISIBLE
-        }, 5000)
+        myWebView?.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
+                Log.d("bootiyar", url)
+                if (!url.contains("gofarsi.ir")) {
+                    loadBrowser(url)
+                    return true
+                }
+                return false
+            }
 
+            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                super.onPageStarted(view, url, favicon)
+                Log.d("bootiyar", "onPageStarted: $url")
+                hasErrorInLoading = false
+            }
+
+            override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
+                Log.d("bootiyar", "onReceivedError")
+                super.onReceivedError(view, request, error)
+                hasErrorInLoading = true
+                if (urlIndex == 3) return
+                myWebView?.loadUrl(list[++urlIndex])
+            }
+
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                currentUrl = url ?: ""
+                if (!hasErrorInLoading) findViewById<RelativeLayout>(R.id.loading).visibility = View.INVISIBLE
+                Log.d("bootiyar", "onPageFinished: $url")
+            }
+
+        }
+
+    }
+
+
+    fun loadBrowser(url:String){
+        val uri: Uri = Uri.parse(url)
+        val intent = Intent(Intent.ACTION_VIEW, uri)
+        startActivity(intent)
     }
 
 
@@ -96,16 +133,12 @@ class WebActivity : AppCompatActivity() {
                 }
                 it.settings?.pluginState = WebSettings.PluginState.ON
             }
-            myWebView.webViewClient = object : WebViewClient() {
-                override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
-                    return false
-                }
-            }
         }
     }
 
+
     override fun onBackPressed() {
-        if (myWebView?.canGoBack() == true) {
+        if (myWebView?.canGoBack() == true && currentUrl != list[urlIndex]) {
             myWebView?.goBack()
         } else {
             super.onBackPressed()
