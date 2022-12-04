@@ -18,7 +18,7 @@ import androidx.appcompat.app.AppCompatActivity
 
 class WebActivity : AppCompatActivity() {
     var myWebView: WebView? = null
-    private val list = arrayListOf("https://book.gofarsi.ir/", "https://book.ir1.gofarsi.ir/", "https://ipfs-book.gofarsi.ir/", "https://book.m1.gofarsi.ir/")
+    private val list = arrayListOf("https://book.ir1.gofarsi.ir/", "https://book.gofarsi.ir/", "https://ipfs-book.gofarsi.ir/", "https://book.m2.gofarsi.ir/", "https://book.m1.gofarsi.ir/")
     var urlIndex = 0
     var hasErrorInLoading = false
     var currentUrl = ""
