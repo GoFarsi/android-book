@@ -18,7 +18,7 @@ import androidx.appcompat.app.AppCompatActivity
 
 class WebActivity : AppCompatActivity() {
     var myWebView: WebView? = null
-    private val list = arrayListOf("https://book.ir1.gofarsi.ir/", "https://book.gofarsi.ir/", "https://ipfs-book.gofarsi.ir/", "https://book.m2.gofarsi.ir/", "https://book.m1.gofarsi.ir/")
+    private val list = arrayListOf("https://ir1-book.gofarsi.ir/", "https://book.gofarsi.ir/", "https://ipfs-book.gofarsi.ir/", "https://hku1-book.gofarsi.ir/", "https://aws1-book.gofarsi.ir/")
     var urlIndex = 0
     var hasErrorInLoading = false
     var currentUrl = ""
@@ -56,7 +56,7 @@ class WebActivity : AppCompatActivity() {
                 Log.d("bootiyar", "onReceivedError")
                 super.onReceivedError(view, request, error)
                 hasErrorInLoading = true
-                if (urlIndex == 3) return
+                if (urlIndex == list.size - 1) return
                 myWebView?.loadUrl(list[++urlIndex])
             }
 
