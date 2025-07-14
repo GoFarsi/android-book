@@ -11,6 +11,7 @@ import android.view.View
 import android.webkit.*
 import android.widget.RelativeLayout
 import android.widget.TextView
+import androidx.activity.addCallback
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -89,6 +90,14 @@ class WebActivity : AppCompatActivity() {
 
         }
 
+        // Replace deprecated onBackPressed with OnBackPressedDispatcher
+        onBackPressedDispatcher.addCallback(this) {
+            if (myWebView?.canGoBack() == true && currentUrl != list[urlIndex]) {
+                myWebView?.goBack()
+            } else {
+                finish()
+            }
+        }
     }
 
     private fun findFastestUrlAndLoad() {
@@ -198,13 +207,5 @@ class WebActivity : AppCompatActivity() {
             return activeNetwork.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
         }
         return false
-    }
-
-    override fun onBackPressed() {
-        if (myWebView?.canGoBack() == true && currentUrl != list[urlIndex]) {
-            myWebView?.goBack()
-        } else {
-            super.onBackPressed()
-        }
     }
 }
