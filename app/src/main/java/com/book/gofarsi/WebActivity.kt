@@ -195,6 +195,22 @@ class WebActivity : AppCompatActivity() {
     }
 
 
+    // Checks if network is available
+    private fun isNetworkAvailable(): Boolean {
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+        if (connectivityManager != null) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                val network = connectivityManager.activeNetwork ?: return false
+                val activeNetwork = connectivityManager.getNetworkCapabilities(network) ?: return false
+                return activeNetwork.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            } else {
+                val networkInfo = connectivityManager.activeNetworkInfo
+                return networkInfo != null && networkInfo.isConnected
+            }
+        }
+        return false
+    }
+
     override fun onBackPressed() {
         if (myWebView?.canGoBack() == true && currentUrl != list[urlIndex]) {
             myWebView?.goBack()
