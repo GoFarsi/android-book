@@ -162,19 +162,20 @@ class WebActivity : AppCompatActivity() {
         }
 
         private fun setSettingWebView(myWebView: WebView) {
-            myWebView.settings.builtInZoomControls = false
-            myWebView.settings.databaseEnabled = true
-            myWebView.settings.domStorageEnabled = true
-            myWebView.settings.setGeolocationEnabled(true)
-            myWebView.settings.loadWithOverviewMode = true
-            myWebView.settings.useWideViewPort = true
+            val settings = myWebView.settings
+            settings.builtInZoomControls = false
+            settings.domStorageEnabled = true
+            settings.setGeolocationEnabled(true)
+            settings.loadWithOverviewMode = true
+            settings.useWideViewPort = true
             myWebView.isScrollbarFadingEnabled = false
             myWebView.clearCache(false)
-            myWebView.settings.allowFileAccess = true
-            myWebView.settings.javaScriptEnabled = true
-            myWebView.settings.cacheMode = WebSettings.LOAD_DEFAULT
-            myWebView.settings.defaultTextEncodingName = "utf-8"
-            myWebView.settings.javaScriptCanOpenWindowsAutomatically = true
+            settings.allowFileAccess = true
+            settings.javaScriptEnabled = true
+            settings.cacheMode = WebSettings.LOAD_DEFAULT
+            settings.defaultTextEncodingName = "utf-8"
+            settings.javaScriptCanOpenWindowsAutomatically = true
+            settings.setSupportMultipleWindows(true)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 CookieManager.getInstance().setAcceptThirdPartyCookies(myWebView, true)
             }
