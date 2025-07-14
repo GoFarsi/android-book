@@ -10,8 +10,8 @@ android {
         applicationId "com.gofarsi.book"
         minSdk 21
         targetSdk 32
-        versionCode 4
-        versionName "1.0.3"
+        versionCode 5
+        versionName "1.2.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
