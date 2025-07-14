@@ -1,7 +1,7 @@
 build-image:
 	docker build -t kotlin-android-builder .
 
-build-apk:
+build-apk-debug:
 	@if [ -z "$$(docker images -q kotlin-android-builder)" ]; then \
 		$(MAKE) build-image; \
 	fi
