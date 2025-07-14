@@ -30,9 +30,6 @@ class WebActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_web)
 
-        var title = intent.extras?.getString(KEY_TITLE) ?: ""
-        var link = intent.extras?.getString(KEY_LINK) ?: ""
-
         // Find the fastest URL before loading
         findViewById<TextView>(R.id.tvVersion).text = BuildConfig.VERSION_NAME
         myWebView = findViewById(R.id.webview)
@@ -41,7 +38,6 @@ class WebActivity : AppCompatActivity() {
         val webSettings = myWebView!!.settings
         webSettings.javaScriptEnabled = true
         webSettings.domStorageEnabled = true
-        webSettings.setAppCacheEnabled(true)
         webSettings.cacheMode = if (isNetworkAvailable()) {
             WebSettings.LOAD_DEFAULT
         } else {
@@ -161,35 +157,26 @@ class WebActivity : AppCompatActivity() {
         }
 
         fun loadWebView(context: Context, content: String, myWebView: WebView) {
-
-            setSettingWebView(context, myWebView)
+            setSettingWebView(myWebView)
             myWebView.loadUrl(content)
-
         }
 
-        private fun setSettingWebView(context: Context, myWebView: WebView) {
-            myWebView?.let {
-                it.settings?.builtInZoomControls = false
-                it.settings?.databaseEnabled = true
-                it.settings?.domStorageEnabled = true
-                it.settings?.setGeolocationEnabled(true)
-                it.settings?.loadWithOverviewMode = true
-                it.settings?.useWideViewPort = true
-                it.isScrollbarFadingEnabled = false
-
-                it.clearCache(false)
-//                it.settings?.setAppCachePath(context.cacheDir?.absolutePath)
-//                it.settings?.setAppCacheEnabled(true)
-                it.settings?.allowFileAccess = true
-                it.settings?.javaScriptEnabled = true
-                it.settings?.cacheMode = WebSettings.LOAD_DEFAULT
-                it.settings?.defaultTextEncodingName = "utf-8"
-                it.settings?.javaScriptCanOpenWindowsAutomatically = true
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    CookieManager.getInstance().setAcceptThirdPartyCookies(it, true)
-                }
-                it.settings?.pluginState = WebSettings.PluginState.ON
+        private fun setSettingWebView(myWebView: WebView) {
+            myWebView.settings.builtInZoomControls = false
+            myWebView.settings.databaseEnabled = true
+            myWebView.settings.domStorageEnabled = true
+            myWebView.settings.setGeolocationEnabled(true)
+            myWebView.settings.loadWithOverviewMode = true
+            myWebView.settings.useWideViewPort = true
+            myWebView.isScrollbarFadingEnabled = false
+            myWebView.clearCache(false)
+            myWebView.settings.allowFileAccess = true
+            myWebView.settings.javaScriptEnabled = true
+            myWebView.settings.cacheMode = WebSettings.LOAD_DEFAULT
+            myWebView.settings.defaultTextEncodingName = "utf-8"
+            myWebView.settings.javaScriptCanOpenWindowsAutomatically = true
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                CookieManager.getInstance().setAcceptThirdPartyCookies(myWebView, true)
             }
         }
     }
@@ -199,14 +186,15 @@ class WebActivity : AppCompatActivity() {
     private fun isNetworkAvailable(): Boolean {
         val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
         if (connectivityManager != null) {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                val network = connectivityManager.activeNetwork ?: return false
-                val activeNetwork = connectivityManager.getNetworkCapabilities(network) ?: return false
-                return activeNetwork.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            val network = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                connectivityManager.activeNetwork ?: return false
             } else {
-                val networkInfo = connectivityManager.activeNetworkInfo
-                return networkInfo != null && networkInfo.isConnected
+                // For older devices, fallback to deprecated method
+                @Suppress("DEPRECATION")
+                return connectivityManager.activeNetworkInfo?.isConnected == true
             }
+            val activeNetwork = connectivityManager.getNetworkCapabilities(network) ?: return false
+            return activeNetwork.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
         }
         return false
     }
