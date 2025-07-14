@@ -156,7 +156,7 @@ class WebActivity : AppCompatActivity() {
             context.startActivity(intent)
         }
 
-        fun loadWebView(context: Context, content: String, myWebView: WebView) {
+        fun loadWebView(content: String, myWebView: WebView) {
             setSettingWebView(myWebView)
             myWebView.loadUrl(content)
         }
