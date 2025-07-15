@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y \
     wget unzip git curl ca-certificates && \
     mkdir -p ${ANDROID_HOME}/cmdline-tools && \
     cd /opt && \
-    wget https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip -O cmdline-tools.zip && \
+    wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip && \
     unzip cmdline-tools.zip -d ${ANDROID_HOME}/cmdline-tools && \
     mv ${ANDROID_HOME}/cmdline-tools/cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest && \
     rm cmdline-tools.zip && \
@@ -24,4 +24,8 @@ ENV GRADLE_OPTS="-Xmx4096m -Dfile.encoding=UTF-8 --add-opens=java.base/java.util
 
 WORKDIR /workspace
 
+# Copy project in (optional if using bind mount)
+# COPY . .
+
+# Default command to build the release APK (Android 15 compatible)
 CMD ["./gradlew", "assembleRelease"]
