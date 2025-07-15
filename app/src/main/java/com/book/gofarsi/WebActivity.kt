@@ -23,7 +23,7 @@ import kotlinx.coroutines.withContext
 
 class WebActivity : AppCompatActivity() {
     var myWebView: WebView? = null
-    private val list = arrayListOf("https://book.gofarsi.ir/", "https://ir1-book.gofarsi.ir/", "https://ipfs-book.gofarsi.ir/", "https://hku1-book.gofarsi.ir/", "https://aws1-book.gofarsi.ir/")
+    private val list = arrayListOf("https://book.gofarsi.ir/","https://cloud-book.gofarsi.ir/", "https://ir1-book.gofarsi.ir/",  "https://ipfs-book.gofarsi.ir/", "https://hku1-book.gofarsi.ir/", "https://aws1-book.gofarsi.ir/")
     var urlIndex = 0
     var hasErrorInLoading = false
     var currentUrl = ""
