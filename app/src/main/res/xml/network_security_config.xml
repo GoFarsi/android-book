@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">gofarsi.ir</domain>
+        <domain includeSubdomains="true">book.gofarsi.ir</domain>
+        <domain includeSubdomains="true">cloud-book.gofarsi.ir</domain>
+        <domain includeSubdomains="true">ir1-book.gofarsi.ir</domain>
+        <domain includeSubdomains="true">ipfs-book.gofarsi.ir</domain>
+        <domain includeSubdomains="true">hku1-book.gofarsi.ir</domain>
+        <domain includeSubdomains="true">aws1-book.gofarsi.ir</domain>
+    </domain-config>
+</network-security-config>

@@ -29,33 +29,43 @@ class WebActivity : AppCompatActivity() {
     var currentUrl = ""
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_web)
+        try {
+            setContentView(R.layout.activity_web)
 
-        // Find the fastest URL before loading
-        findViewById<TextView>(R.id.tvVersion).text = BuildConfig.VERSION_NAME
-        myWebView = findViewById(R.id.webview)
+            // Find the fastest URL before loading
+            findViewById<TextView>(R.id.tvVersion).text = BuildConfig.VERSION_NAME
+            myWebView = findViewById(R.id.webview)
 
-        // --- WebView settings for PWA and offline caching ---
-        val webSettings = myWebView!!.settings
-        webSettings.javaScriptEnabled = true
-        webSettings.domStorageEnabled = true
-        webSettings.cacheMode = if (isNetworkAvailable()) {
-            WebSettings.LOAD_DEFAULT
-        } else {
-            WebSettings.LOAD_CACHE_ELSE_NETWORK
+            // --- WebView settings for PWA and offline caching ---
+            val webSettings = myWebView!!.settings
+            webSettings.javaScriptEnabled = true
+            webSettings.domStorageEnabled = true
+            webSettings.allowFileAccess = true
+            webSettings.allowContentAccess = true
+            webSettings.allowFileAccessFromFileURLs = true
+            webSettings.allowUniversalAccessFromFileURLs = true
+            webSettings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            webSettings.cacheMode = if (isNetworkAvailable()) {
+                WebSettings.LOAD_DEFAULT
+            } else {
+                WebSettings.LOAD_CACHE_ELSE_NETWORK
+            }
+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                ServiceWorkerController.getInstance().setServiceWorkerClient(object : ServiceWorkerClient() {
+                    override fun shouldInterceptRequest(request: WebResourceRequest): WebResourceResponse? {
+                        return null
+                    }
+                })
+            }
+            // --- End WebView settings ---
+
+            // Launch coroutine to find fastest URL
+            findFastestUrlAndLoad()
+        } catch (e: Exception) {
+            Log.e("WebActivity", "Error in onCreate: ${e.message}", e)
+            finish()
         }
-
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-            ServiceWorkerController.getInstance().setServiceWorkerClient(object : ServiceWorkerClient() {
-                override fun shouldInterceptRequest(request: WebResourceRequest): WebResourceResponse? {
-                    return null
-                }
-            })
-        }
-        // --- End WebView settings ---
-
-        // Launch coroutine to find fastest URL
-        findFastestUrlAndLoad()
 
         myWebView?.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
@@ -106,19 +116,31 @@ class WebActivity : AppCompatActivity() {
     private fun findFastestUrlAndLoad() {
         CoroutineScope(Dispatchers.IO).launch {
             var isUrlLoaded = false
-            for (url in list) {
-                if (isUrlResponsive(url)) {
-                    withContext(Dispatchers.Main) {
-                        myWebView?.loadUrl(url)
+            for ((index, url) in list.withIndex()) {
+                try {
+                    if (isUrlResponsive(url)) {
+                        urlIndex = index
+                        withContext(Dispatchers.Main) {
+                            myWebView?.loadUrl(url)
+                        }
+                        isUrlLoaded = true
+                        break
                     }
-                    isUrlLoaded = true
-                    break
+                } catch (e: Exception) {
+                    Log.e("WebActivity", "Error checking URL $url: ${e.message}")
+                    continue
                 }
             }
             if (!isUrlLoaded) {
                 withContext(Dispatchers.Main) {
-                    // Handle case where no URL is responsive
-                    findViewById<RelativeLayout>(R.id.loading).visibility = View.INVISIBLE
+                    // Handle case where no URL is responsive - load first URL anyway
+                    try {
+                        myWebView?.loadUrl(list[0])
+                        findViewById<RelativeLayout>(R.id.loading).visibility = View.VISIBLE
+                    } catch (e: Exception) {
+                        Log.e("WebActivity", "Error loading fallback URL: ${e.message}")
+                        findViewById<RelativeLayout>(R.id.loading).visibility = View.INVISIBLE
+                    }
                 }
             }
         }
@@ -210,5 +232,39 @@ class WebActivity : AppCompatActivity() {
             return activeNetwork.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
         }
         return false
+    }
+
+    override fun onDestroy() {
+        try {
+            myWebView?.clearHistory()
+            myWebView?.clearCache(true)
+            myWebView?.loadUrl("about:blank")
+            myWebView?.onPause()
+            myWebView?.removeAllViews()
+            myWebView?.destroyDrawingCache()
+            myWebView?.destroy()
+            myWebView = null
+        } catch (e: Exception) {
+            Log.e("WebActivity", "Error in onDestroy: ${e.message}")
+        }
+        super.onDestroy()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        try {
+            myWebView?.onPause()
+        } catch (e: Exception) {
+            Log.e("WebActivity", "Error in onPause: ${e.message}")
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        try {
+            myWebView?.onResume()
+        } catch (e: Exception) {
+            Log.e("WebActivity", "Error in onResume: ${e.message}")
+        }
     }
 }
