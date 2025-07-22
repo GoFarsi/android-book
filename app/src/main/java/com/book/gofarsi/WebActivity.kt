@@ -33,52 +33,6 @@ class WebActivity : AppCompatActivity() {
     var urlIndex = 0
     var hasErrorInLoading = false
     var currentUrl = ""
-    
-    companion object {
-        private const val TAG = "WebActivity" // Better log tag
-        val KEY_TITLE = "title"
-        val KEY_LINK = "link"
-
-        // Cache for storing response times and last check time
-        private val responseTimeCache = ConcurrentHashMap<String, Pair<Long, Long>>() // URL -> (responseTime, timestamp)
-        private const val CACHE_VALIDITY_MS = 5 * 60 * 1000L // 5 minutes
-        private const val MAX_TIMEOUT_MS = 2000L
-        private const val MIN_TIMEOUT_MS = 500L
-
-        fun navigate(context: Context, title: String, link: String) {
-            val intent = Intent(context, WebActivity::class.java).apply {
-                putExtra(KEY_TITLE, title)
-                putExtra(KEY_LINK, link)
-            }
-            context.startActivity(intent)
-        }
-
-        fun loadWebView(content: String, myWebView: WebView) {
-            setSettingWebView(myWebView)
-            myWebView.loadUrl(content)
-        }
-
-        private fun setSettingWebView(myWebView: WebView) {
-            val settings = myWebView.settings
-            settings.builtInZoomControls = false
-            settings.domStorageEnabled = true
-            settings.setGeolocationEnabled(true)
-            settings.loadWithOverviewMode = true
-            settings.useWideViewPort = true
-            myWebView.isScrollbarFadingEnabled = false
-            myWebView.clearCache(false)
-            settings.allowFileAccess = true
-            settings.javaScriptEnabled = true
-            settings.cacheMode = WebSettings.LOAD_DEFAULT
-            settings.defaultTextEncodingName = "utf-8"
-            settings.javaScriptCanOpenWindowsAutomatically = true
-            settings.setSupportMultipleWindows(true)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                CookieManager.getInstance().setAcceptThirdPartyCookies(myWebView, true)
-            }
-        }
-    }
-    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         try {
@@ -121,7 +75,7 @@ class WebActivity : AppCompatActivity() {
 
         myWebView?.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
-                Log.d(TAG, "shouldOverrideUrlLoading: $url")
+                Log.d("bootlegger", url)
                 if (!url.contains("gofarsi.ir")) {
                     loadBrowser(url)
                     return true
@@ -131,12 +85,12 @@ class WebActivity : AppCompatActivity() {
 
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                 super.onPageStarted(view, url, favicon)
-                Log.d(TAG, "onPageStarted: $url")
+                Log.d("bootlegger", "onPageStarted: $url")
                 hasErrorInLoading = false
             }
 
             override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
-                Log.d(TAG, "onReceivedError: ${error?.description}")
+                Log.d("bootlegger", "onReceivedError")
                 super.onReceivedError(view, request, error)
                 hasErrorInLoading = true
                 if (urlIndex == list.size - 1) return
@@ -147,7 +101,7 @@ class WebActivity : AppCompatActivity() {
                 super.onPageFinished(view, url)
                 currentUrl = url ?: ""
                 if (!hasErrorInLoading) findViewById<RelativeLayout>(R.id.loading).visibility = View.INVISIBLE
-                Log.d(TAG, "onPageFinished: $url")
+                Log.d("bootlegger", "onPageFinished: $url")
             }
 
         }
@@ -293,6 +247,51 @@ class WebActivity : AppCompatActivity() {
 
          return doc.toString()
      }*/
+
+
+    companion object {
+        val KEY_TITLE = "title"
+        val KEY_LINK = "link"
+
+        // Cache for storing response times and last check time
+        private val responseTimeCache = ConcurrentHashMap<String, Pair<Long, Long>>() // URL -> (responseTime, timestamp)
+        private const val CACHE_VALIDITY_MS = 5 * 60 * 1000L // 5 minutes
+        private const val MAX_TIMEOUT_MS = 2000L
+        private const val MIN_TIMEOUT_MS = 500L
+
+        fun navigate(context: Context, title: String, link: String) {
+            val intent = Intent(context, WebActivity::class.java).apply {
+                putExtra(KEY_TITLE, title)
+                putExtra(KEY_LINK, link)
+            }
+            context.startActivity(intent)
+        }
+
+        fun loadWebView(content: String, myWebView: WebView) {
+            setSettingWebView(myWebView)
+            myWebView.loadUrl(content)
+        }
+
+        private fun setSettingWebView(myWebView: WebView) {
+            val settings = myWebView.settings
+            settings.builtInZoomControls = false
+            settings.domStorageEnabled = true
+            settings.setGeolocationEnabled(true)
+            settings.loadWithOverviewMode = true
+            settings.useWideViewPort = true
+            myWebView.isScrollbarFadingEnabled = false
+            myWebView.clearCache(false)
+            settings.allowFileAccess = true
+            settings.javaScriptEnabled = true
+            settings.cacheMode = WebSettings.LOAD_DEFAULT
+            settings.defaultTextEncodingName = "utf-8"
+            settings.javaScriptCanOpenWindowsAutomatically = true
+            settings.setSupportMultipleWindows(true)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                CookieManager.getInstance().setAcceptThirdPartyCookies(myWebView, true)
+            }
+        }
+    }
 
 
     // Checks if network is available
