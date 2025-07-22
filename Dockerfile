@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
         "platform-tools" \
         "platforms;android-35" \
         "build-tools;35.0.0" \
+        "build-tools;34.0.0" \
         "ndk;27.2.12479018"
 
 # Set Gradle properties for better performance and Java 17+ compatibility
@@ -27,5 +28,6 @@ WORKDIR /workspace
 # Copy project in (optional if using bind mount)
 # COPY . .
 
-# Default command to build the release APK (Android 15 compatible)
+# Default command to build the release APK
+# Compatible with Android Gradle Plugin 8.7.3 and compileSdk 35
 CMD ["./gradlew", "assembleRelease"]
