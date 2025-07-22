@@ -15,7 +15,7 @@ android {
     compileSdk 35
 
     defaultConfig {
-        applicationId "com.gofarsi.book"
+        applicationId "com.book.gofarsi"
         minSdk 21
         targetSdk 35
         versionCode 6
