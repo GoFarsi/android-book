@@ -150,7 +150,9 @@ class WebActivity : AppCompatActivity() {
                     val controller = window.insetsController
                     controller?.show(WindowInsetsCompat.Type.statusBars())
                     // Use light content (white icons) on dark status bar
-                    controller?.setSystemBarsAppearance(0, WindowInsetsControllerCompat.APPEARANCE_LIGHT_STATUS_BARS)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        controller?.setSystemBarsAppearance(0, android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS)
+                    }
                 } else {
                     // For older versions, use deprecated flags
                     @Suppress("DEPRECATION")
