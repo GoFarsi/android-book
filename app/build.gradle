@@ -3,18 +3,34 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+// Load keystore properties
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace 'com.book.gofarsi'
     compileSdk 35
 
     defaultConfig {
-        applicationId "com.book.gofarsi"
+        applicationId "com.gofarsi.book"
         minSdk 21
         targetSdk 35
         versionCode 6
-        versionName "1.3.0"
+        versionName "1.1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        release {
+            storeFile file('release-key.keystore')
+            storePassword keystoreProperties['KEYSTORE_PASSWORD'] ?: System.getenv("KEYSTORE_PASSWORD")
+            keyAlias keystoreProperties['KEY_ALIAS'] ?: System.getenv("KEY_ALIAS")
+            keyPassword keystoreProperties['KEY_PASSWORD'] ?: System.getenv("KEY_PASSWORD")
+        }
     }
 
     buildFeatures {
@@ -23,7 +39,7 @@ android {
 
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'

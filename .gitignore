@@ -10,4 +10,4 @@
 local.properties
 app/release/
 build/
-
+keystore.properties
