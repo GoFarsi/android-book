@@ -3,19 +3,25 @@ package com.book.gofarsi
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.view.WindowManager
 import android.webkit.*
 import android.widget.RelativeLayout
 import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import kotlinx.coroutines.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.system.measureTimeMillis
+import java.util.concurrent.atomic.AtomicBoolean
 
 
 //import org.jsoup.Jsoup
@@ -36,6 +42,9 @@ class WebActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         try {
+            // Configure status bar and navigation bar
+            configureStatusBar()
+
             setContentView(R.layout.activity_web)
 
             // Find the fastest URL before loading
@@ -51,6 +60,14 @@ class WebActivity : AppCompatActivity() {
             // Note: allowFileAccessFromFileURLs and allowUniversalAccessFromFileURLs are deprecated
             // and removed for security reasons. Modern apps should use alternative approaches.
             webSettings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+
+            // Prevent WebView from going fullscreen
+            webSettings.loadWithOverviewMode = true
+            webSettings.useWideViewPort = true
+            webSettings.setSupportZoom(true)  // ✅ ENABLE zoom functionality
+            webSettings.builtInZoomControls = true  // ✅ ENABLE zoom controls
+            webSettings.displayZoomControls = false // ❌ HIDE zoom buttons (users can still pinch-to-zoom)
+
             webSettings.cacheMode = if (isNetworkAvailable()) {
                 WebSettings.LOAD_DEFAULT
             } else {
@@ -119,19 +136,63 @@ class WebActivity : AppCompatActivity() {
         onBackPressedDispatcher.addCallback(this, callback)
     }
 
+    private fun configureStatusBar() {
+        // Make sure status bar is visible and properly configured
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            // Set status bar color
+            window.statusBarColor = Color.parseColor("#2196F3") // Blue color, change as needed
+
+            // For Android 6.0+ (API 23), we can control light/dark status bar content
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                // Use WindowInsetsController for better control (API 30+)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    window.setDecorFitsSystemWindows(false)
+                    val controller = window.insetsController
+                    controller?.show(WindowInsetsCompat.Type.statusBars())
+                    // Use light content (white icons) on dark status bar
+                    controller?.setSystemBarsAppearance(0, WindowInsetsControllerCompat.APPEARANCE_LIGHT_STATUS_BARS)
+                } else {
+                    // For older versions, use deprecated flags
+                    @Suppress("DEPRECATION")
+                    window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                }
+            }
+        }
+
+        // Ensure the activity doesn't go full screen
+        window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+
+        // Show the status bar if it was hidden
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.show(WindowInsetsCompat.Type.statusBars())
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = window.decorView.systemUiVisibility and
+                View.SYSTEM_UI_FLAG_FULLSCREEN.inv()
+        }
+    }
+
     private fun findFastestUrlAndLoad() {
+        // Start loading the first URL immediately while testing others in background
+        CoroutineScope(Dispatchers.Main).launch {
+            // Load first URL immediately to show something to user
+            myWebView?.loadUrl(list[0])
+            urlIndex = 0
+        }
+
+        // Test URLs in background and switch if we find a faster one
         CoroutineScope(Dispatchers.IO).launch {
             val fastestUrl = findFastestUrlOptimized()
 
             withContext(Dispatchers.Main) {
-                if (fastestUrl != null) {
-                    urlIndex = list.indexOf(fastestUrl)
-                    myWebView?.loadUrl(fastestUrl)
-                } else {
-                    // Fallback to first URL if none are responsive
-                    urlIndex = 0
-                    myWebView?.loadUrl(list[0])
-                    findViewById<RelativeLayout>(R.id.loading).visibility = View.VISIBLE
+                if (fastestUrl != null && fastestUrl != list[0]) {
+                    // Only switch if we found a different, faster URL
+                    val newIndex = list.indexOf(fastestUrl)
+                    if (newIndex != urlIndex) {
+                        urlIndex = newIndex
+                        myWebView?.loadUrl(fastestUrl)
+                        Log.d("WebActivity", "Switched to faster URL: $fastestUrl")
+                    }
                 }
             }
         }
@@ -156,58 +217,80 @@ class WebActivity : AppCompatActivity() {
             return cachedResults.minByOrNull { it.second }?.first
         }
 
-        // Otherwise, test URLs concurrently with race condition
+        // Use a race condition approach - first successful response wins
         return withContext(Dispatchers.IO) {
-            val jobs = list.map { url ->
+            val firstSuccessful = AtomicBoolean(false)
+            var fastestUrl: String? = null
+            var fastestTime = Long.MAX_VALUE
+
+            // Launch all requests concurrently
+            val jobs = list.mapIndexed { index, url ->
                 async {
-                    val responseTime = measureUrlResponseTime(url)
-                    if (responseTime != null) {
-                        // Cache the result
-                        responseTimeCache[url] = responseTime to currentTime
-                        url to responseTime
-                    } else {
+                    try {
+                        // Use shorter timeout for first quick scan
+                        val timeout = if (firstSuccessful.get()) MAX_TIMEOUT_MS else FAST_LOAD_TIMEOUT_MS
+                        val responseTime = measureUrlResponseTime(url, timeout)
+
+                        if (responseTime != null && responseTime < fastestTime) {
+                            synchronized(this@WebActivity) {
+                                if (responseTime < fastestTime) {
+                                    fastestTime = responseTime
+                                    fastestUrl = url
+
+                                    // Cache the result
+                                    responseTimeCache[url] = responseTime to currentTime
+
+                                    // If we find a very fast response, we can use it immediately
+                                    if (responseTime < MIN_TIMEOUT_MS) {
+                                        firstSuccessful.set(true)
+                                    }
+                                }
+                            }
+                        }
+                        responseTime
+                    } catch (e: Exception) {
+                        Log.d("WebActivity", "URL $url failed: ${e.message}")
                         null
                     }
                 }
             }
 
-            // Wait for first successful response (race condition)
-            var fastestResult: Pair<String, Long>? = null
-
+            // Wait for either the first very fast response or all jobs to complete
             try {
-                // Use select to get the first successful result
-                for (job in jobs) {
-                    val result = job.await()
-                    if (result != null) {
-                        if (fastestResult == null || result.second < fastestResult.second) {
-                            fastestResult = result
-                        }
-                        // If we find a very fast response (< 500ms), use it immediately
-                        if (result.second < MIN_TIMEOUT_MS) {
-                            break
+                // Wait a short time for a quick response
+                withTimeout(FAST_LOAD_TIMEOUT_MS + 200) {
+                    for (job in jobs) {
+                        if (firstSuccessful.get()) break
+                        try {
+                            job.await()
+                        } catch (e: Exception) {
+                            // Continue with other jobs
                         }
                     }
                 }
-            } catch (e: Exception) {
-                Log.e("WebActivity", "Error in concurrent URL testing: ${e.message}")
+            } catch (e: TimeoutCancellationException) {
+                // If we timeout, use whatever we have so far
+                Log.d("WebActivity", "Quick scan timeout, using best result so far")
             }
 
-            fastestResult?.first
+            fastestUrl
         }
     }
 
-    private suspend fun measureUrlResponseTime(url: String): Long? {
+    private suspend fun measureUrlResponseTime(url: String, timeoutMs: Long = MAX_TIMEOUT_MS): Long? {
         return withContext(Dispatchers.IO) {
             try {
                 val responseTime = measureTimeMillis {
                     val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
                     connection.apply {
                         requestMethod = "HEAD"
-                        connectTimeout = MAX_TIMEOUT_MS.toInt()
-                        readTimeout = MAX_TIMEOUT_MS.toInt()
+                        connectTimeout = timeoutMs.toInt()
+                        readTimeout = timeoutMs.toInt()
                         setRequestProperty("User-Agent", "Android-Book-App")
                         // Add cache control to get fresh response
                         setRequestProperty("Cache-Control", "no-cache")
+                        // Add connection keep-alive for faster subsequent requests
+                        setRequestProperty("Connection", "keep-alive")
                     }
 
                     val responseCode = connection.responseCode
@@ -256,8 +339,9 @@ class WebActivity : AppCompatActivity() {
         // Cache for storing response times and last check time
         private val responseTimeCache = ConcurrentHashMap<String, Pair<Long, Long>>() // URL -> (responseTime, timestamp)
         private const val CACHE_VALIDITY_MS = 5 * 60 * 1000L // 5 minutes
-        private const val MAX_TIMEOUT_MS = 2000L
-        private const val MIN_TIMEOUT_MS = 500L
+        private const val MAX_TIMEOUT_MS = 1500L // Reduced from 2000ms for faster first load
+        private const val MIN_TIMEOUT_MS = 400L // Reduced for quicker selection
+        private const val FAST_LOAD_TIMEOUT_MS = 800L // Very quick timeout for first attempt
 
         fun navigate(context: Context, title: String, link: String) {
             val intent = Intent(context, WebActivity::class.java).apply {
