@@ -146,13 +146,12 @@ class WebActivity : AppCompatActivity() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 // Use WindowInsetsController for better control (API 30+)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    window.setDecorFitsSystemWindows(false)
+                    // Use AndroidX WindowCompat instead of deprecated setDecorFitsSystemWindows
+                    WindowCompat.setDecorFitsSystemWindows(window, false)
                     val controller = window.insetsController
                     controller?.show(WindowInsetsCompat.Type.statusBars())
                     // Use light content (white icons) on dark status bar
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        controller?.setSystemBarsAppearance(0, android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS)
-                    }
+                    controller?.setSystemBarsAppearance(0, android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS)
                 } else {
                     // For older versions, use deprecated flags
                     @Suppress("DEPRECATION")
@@ -162,6 +161,7 @@ class WebActivity : AppCompatActivity() {
         }
 
         // Ensure the activity doesn't go full screen
+        @Suppress("DEPRECATION")
         window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
 
         // Show the status bar if it was hidden
