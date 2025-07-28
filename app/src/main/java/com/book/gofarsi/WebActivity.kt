@@ -14,7 +14,11 @@ import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.coroutines.*
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import kotlin.system.measureTimeMillis
 
 
@@ -24,15 +28,24 @@ class WebActivity : AppCompatActivity() {
     var myWebView: WebView? = null
     private val list = arrayListOf(
         "https://book.gofarsi.ir/",
-        "https://cloud-book.gofarsi.ir/",
-        "https://ir1-book.gofarsi.ir/",
-        "https://ipfs-book.gofarsi.ir/",
-        "https://hku1-book.gofarsi.ir/",
-        "https://aws1-book.gofarsi.ir/"
+       // "https://cloud-book.gofarsi.ir/",
+       // "https://ir1-book.gofarsi.ir/",
+       // "https://ipfs-book.gofarsi.ir/",
+      //  "https://hku1-book.gofarsi.ir/",
+       // "https://aws1-book.gofarsi.ir/"
     )
     var urlIndex = 0
     var hasErrorInLoading = false
     var currentUrl = ""
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(3, TimeUnit.SECONDS)
+        .readTimeout(3, TimeUnit.SECONDS)
+        .build()
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val job = Job()
+    private val coroutineScope = CoroutineScope(Dispatchers.Main + job)
+    private lateinit var cacheInterceptor:CacheInterceptor
 
     companion object {
         private const val TAG = "WebActivity" // Better log tag
@@ -83,7 +96,7 @@ class WebActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         try {
             setContentView(R.layout.activity_web)
-
+            cacheInterceptor = CacheInterceptor(applicationContext)
             // Find the fastest URL before loading
             findViewById<TextView>(R.id.tvVersion).text = BuildConfig.VERSION_NAME
             myWebView = findViewById(R.id.webview)
@@ -97,23 +110,38 @@ class WebActivity : AppCompatActivity() {
             // Note: allowFileAccessFromFileURLs and allowUniversalAccessFromFileURLs are deprecated
             // and removed for security reasons. Modern apps should use alternative approaches.
             webSettings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-            webSettings.cacheMode = if (isNetworkAvailable()) {
-                WebSettings.LOAD_DEFAULT
-            } else {
-                WebSettings.LOAD_CACHE_ELSE_NETWORK
+           // webSettings.cacheMode = if (isNetworkAvailable()) {
+           //     WebSettings.LOAD_DEFAULT
+           // } else {
+           //     WebSettings.LOAD_CACHE_ELSE_NETWORK
+           // }
+            if (!isNetworkAvailable()){
+                myWebView?.loadUrl("javascript:document.body.innerHTML='" +
+                        getOfflineHtml() + "'")
             }
 
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
                 ServiceWorkerController.getInstance().setServiceWorkerClient(object : ServiceWorkerClient() {
                     override fun shouldInterceptRequest(request: WebResourceRequest): WebResourceResponse? {
-                        return null
+                        //return null
+                        if (!isNetworkAvailable()) {
+                            return cacheInterceptor.getResponse(request)
+                        }
+
+
+                        val networkResponse = super.shouldInterceptRequest(request)
+                        networkResponse?.let {
+                            cacheInterceptor.saveResponse(request.url.toString(), it)
+                        }
+                        return networkResponse
                     }
                 })
             }
             // --- End WebView settings ---
 
             // Launch coroutine to find fastest URL
-            findFastestUrlAndLoad()
+            //findFastestUrlAndLoad(list)
+            myWebView?.loadUrl(list[0])
         } catch (e: Exception) {
             Log.e("WebActivity", "Error in onCreate: ${e.message}", e)
             finish()
@@ -146,7 +174,8 @@ class WebActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 currentUrl = url ?: ""
-                if (!hasErrorInLoading) findViewById<RelativeLayout>(R.id.loading).visibility = View.INVISIBLE
+               // if (!hasErrorInLoading)
+                findViewById<RelativeLayout>(R.id.loading).visibility = View.INVISIBLE
                 Log.d(TAG, "onPageFinished: $url")
             }
 
@@ -164,6 +193,21 @@ class WebActivity : AppCompatActivity() {
         }
         onBackPressedDispatcher.addCallback(this, callback)
     }
+
+
+    private fun getOfflineHtml(): String {
+        return try {
+            val inputStream = application.assets.open("offline.html")
+            val size = inputStream.available()
+            val buffer = ByteArray(size)
+            inputStream.read(buffer)
+            inputStream.close()
+            String(buffer)
+        } catch (e: IOException) {
+            "<h1>You're offline</h1><p>No cached content available</p>"
+        }
+    }
+
 
     private fun findFastestUrlAndLoad() {
         CoroutineScope(Dispatchers.IO).launch {
@@ -238,6 +282,7 @@ class WebActivity : AppCompatActivity() {
                 Log.e("WebActivity", "Error in concurrent URL testing: ${e.message}")
             }
 
+
             fastestResult?.first
         }
     }
@@ -263,6 +308,7 @@ class WebActivity : AppCompatActivity() {
                         throw Exception("HTTP $responseCode")
                     }
                 }
+                Log.i("aaa",responseTime.toString())
                 responseTime
             } catch (e: Exception) {
                 Log.d("WebActivity", "URL $url failed: ${e.message}")
@@ -270,6 +316,48 @@ class WebActivity : AppCompatActivity() {
             }
         }
     }
+
+
+    private fun findFastestUrlAndLoad(urls: List<String>) {
+        coroutineScope.launch {
+            val fastestUrl = findFastestUrl(urls)
+            fastestUrl?.let {
+                myWebView?.loadUrl(it)
+            } ?: run {
+                myWebView?.loadUrl(list[0])
+            }
+        }
+    }
+
+    private suspend fun findFastestUrl(urls: List<String>): String? = coroutineScope {
+        val jobs = urls.map { url ->
+            async(Dispatchers.IO) {
+                try {
+                    val request = Request.Builder()
+                        .url(url)
+                        .head() // فقط هدرها را دریافت می‌کند
+                        .build()
+
+                    val responseTime = measureTimeMillis {
+                        client.newCall(request).execute().use { response ->
+                            if (!response.isSuccessful) null
+                        }
+                    }
+
+                    if (responseTime > 0) url to responseTime else null
+                } catch (e: Exception) {
+                    null
+                }
+            }
+        }
+
+        // منتظر ماندن برای اولین پاسخ موفق
+        val results = jobs.awaitAll().filterNotNull()
+
+        // پیدا کردن سریع‌ترین پاسخ
+        results.minByOrNull { it.second }?.first
+    }
+
 
     fun loadBrowser(url:String){
         val uri: Uri = Uri.parse(url)
@@ -341,6 +429,7 @@ class WebActivity : AppCompatActivity() {
         super.onResume()
         try {
             myWebView?.onResume()
+            scope.cancel()
         } catch (e: Exception) {
             Log.e("WebActivity", "Error in onResume: ${e.message}")
         }

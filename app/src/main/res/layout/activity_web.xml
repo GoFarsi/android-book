@@ -2,6 +2,7 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:background="@color/white">
 
     <WebView
@@ -27,7 +28,25 @@
             android:layout_height="34dp"
             android:layout_above="@id/tvVersion"
             android:layout_centerHorizontal="true"
+            android:visibility="gone"
             android:layout_marginBottom="30dp" />
+
+
+        <com.airbnb.lottie.LottieAnimationView
+            android:id="@+id/animation_view"
+            android:layout_width="match_parent"
+            android:layout_height="150dp"
+            android:layout_above="@id/tvVersion"
+            android:layout_centerHorizontal="true"
+            android:layout_gravity="center"
+            android:scaleType="fitCenter"
+            app:lottie_autoPlay="true"
+            app:lottie_loop="true"
+            app:lottie_progress="0.5"
+            app:lottie_rawRes="@raw/bookblue"
+            app:lottie_renderMode="automatic"
+            app:lottie_repeatMode="restart"
+            app:lottie_speed="1.0" />
 
         <TextView
             android:id="@+id/tvVersion"
